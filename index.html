@@ -7,10 +7,24 @@
     <script type="text/javascript" src="gl-matrix-min.js"></script>
 	<script type="text/javascript" src="webgl-utils.js"></script>
     <script type="text/javascript" src="rasterize.js"></script>
+	<link rel="stylesheet" href="styles.css">
   </head>
 
   <body onload="main();">
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
+	<button onclick="refresh()">Refresh</button>
+	<div id="sliderContainer">
+	  <div id="canvasWtext">canvas width:</div>
+	  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasW">
+	<div id="sliderContainer">
+	  <div id="canvasHtext">canvas height:</div>
+	  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasH">
+	</div>
+	<form>
+	  <label for="inputlink">viewing window parameters (left, right, top, bottom): </label>
+	  <input type="text" id="windowparams" name="windowparams"
+	  value="0,1,0,1">
+	</form>
 	<div> 
 		a and d — translate view left and right along view X<br />
 		w and s — translate view forward and backward along view Z<br />

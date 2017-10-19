@@ -325,18 +325,31 @@ function setupShaders() {
 		uniform vec3 uLightDiff;
 		uniform vec3 uLightSepc;
 		
+		uniform int uModel;
+		
         void main(void) {
 			vec3 vLVec = normalize(uLightPos - vPosition.xyz);
 			vec3 vNVec = normalize(vNormal);
 			vec3 vVVec = normalize(uEyePos - vPosition.xyz);
-			vec3 vHVec = normalize(vVVec + vLVec);
 			
 			float NdotL = max(dot(vNVec, vLVec), 0.0);
-			float NdotH = max(dot(vNVec, vHVec), 0.0);
 			
-			gl_FragColor = vAmbient*vec4(uLightAmbi,1.0)
-			+ vDiffuse*vec4(uLightDiff,1.0) * NdotL
- 			+ vSpecular*vec4(uLightSepc,1.0) * pow(NdotH, vN);
+			if(uModel == 1) {
+				vec3 vHVec = normalize(vVVec + vLVec);
+				float NdotH = max(dot(vNVec, vHVec), 0.0);
+			
+				gl_FragColor = vAmbient*vec4(uLightAmbi,1.0)
+				+ vDiffuse*vec4(uLightDiff,1.0) * NdotL
+	 			+ vSpecular*vec4(uLightSepc,1.0) * pow(NdotH, vN);
+			} else {
+				float LdotN = dot(vLVec, vNVec);
+				vec3 vRVec = normalize(2.0*LdotN*vNVec - vLVec);
+				float RdotV = max(dot(vRVec, vVVec), 0.0);
+				
+				gl_FragColor = vAmbient*vec4(uLightAmbi,1.0)
+				+ vDiffuse*vec4(uLightDiff,1.0) * NdotL
+	 			+ vSpecular*vec4(uLightSepc,1.0) * pow(RdotV, vN);
+			}
         }
     `;
 	
@@ -389,6 +402,7 @@ function setupShaders() {
 				shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "upMatrix");
 				shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, "uNMatrix");
 				
+				shaderProgram.ModelSelectionUniform = gl.getUniformLocation(shaderProgram, "uModel");
 				shaderProgram.eyePosUniform = gl.getUniformLocation(shaderProgram, "uEyePos");
 				shaderProgram.lightPosUniform = gl.getUniformLocation(shaderProgram, "uLightPos");
 				shaderProgram.lightAmbientUniform = gl.getUniformLocation(shaderProgram, "uLightAmbi");
@@ -428,61 +442,70 @@ function tick() {
 var translateX = 0.0;
 var translateY = 0.0;
 var translateZ = 0.0;
+var modelSelection = 1;
+
+var fov = Math.PI/4;
+var ratio = 512/512.0;
+
 function setupListener() {
 	document.addEventListener('keydown', function(event) {
 	    if(event.keyCode == 65) {
-	        console.log('a')
+	        console.log('a');
 			Eye[0] += 0.01;
 			updateCenter();
 	    }
 	    else if(event.keyCode == 68) {
-	        console.log('d')
+	        console.log('d');
 			Eye[0] -= 0.01;
 			updateCenter();
 	    }
 		
 		else if(event.keyCode == 87) {
-	        console.log('w')
+	        console.log('w');
 			Eye[2] += 0.01;
 			updateCenter();
 	    }
 		else if(event.keyCode == 83) {
-	        console.log('s')
+	        console.log('s');
 			Eye[2] -= 0.01;
 			updateCenter();
 	    }
 		
 		else if(event.keyCode == 81) {
-	        console.log('q')
+	        console.log('q');
 			Eye[1] += 0.01;
 			updateCenter();
 	    }
 		else if(event.keyCode == 69) {
-	        console.log('w')
+	        console.log('w');
 			Eye[1] -= 0.01;
 			updateCenter();
 	    }
 		
 		else if(event.keyCode == 74) {
-	        console.log('j')
+	        console.log('j');
 			LookAt[0] += 0.01;
 			updateCenter();
 	    }
 		else if(event.keyCode == 76) {
-	        console.log('l')
+	        console.log('l');
 			LookAt[0] -= 0.01;
 			updateCenter();
 	    }
 		
 		else if(event.keyCode == 73) {
-	        console.log('i')
+	        console.log('i');
 			LookAt[1] += 0.01;
 			updateCenter();
 	    }
 		else if(event.keyCode == 75) {
-	        console.log('k')
+	        console.log('k');
 			LookAt[1] -= 0.01;
 			updateCenter();
+	    }
+		
+		else if(event.keyCode == 66) {
+	        modelSelection = 1 - modelSelection;
 	    }
 	});
 }
@@ -498,6 +521,10 @@ function renderScene() {
 		                Eye[0],
 		                Eye[1],
 		                Eye[2]
+		            );
+		gl.uniform1i(
+		                shaderProgram.ModelSelectionUniform,
+		                modelSelection
 		            );
 		for(var i=0; i<inputLights.length; i++) {
 			gl.uniform3f(
@@ -529,10 +556,8 @@ function renderScene() {
 	}
 	
 	mat4.identity(pMatrix);
-	var fov = Math.PI/4;
-	var ratio = 512/512.0;
 	var near = 1.0;
-	var far = 100.0;
+	var far = 2.0;
 	mat4.perspective(pMatrix, fov, ratio, near, far);
 	
 	var lookat = mat4.create();
@@ -588,3 +613,35 @@ function main() {
   //renderScene(); // draw the triangles using webGL
   
 } // end main
+
+// use code from toturial: https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+function resize(canvas) {
+  // Lookup the size the browser is displaying the canvas.
+  var displayWidth  = document.getElementById('canvasW').value;
+  var displayHeight = document.getElementById('canvasH').value;
+ 
+  // Check if the canvas is not the same size.
+  if (canvas.width  != displayWidth ||
+      canvas.height != displayHeight) {
+ 
+    // Make the canvas the same size
+    canvas.width  = displayWidth;
+    canvas.height = displayHeight;
+  }
+}
+
+function refresh() {
+	// resize canvas
+    var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
+    gl = canvas.getContext("webgl"); // get a webgl object from it
+	
+	resize(gl.canvas);
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	
+	// adjust viewing window
+	// (left, right, top, bottom)
+	var windowParams = JSON.parse("[" + document.getElementById('windowparams').value + "]");
+	//var fov = Math.PI/4;
+	ratio = (windowParams[3]-windowParams[2])/(windowParams[1]-windowParams[0]);
+}
+

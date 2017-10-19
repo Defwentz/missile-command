@@ -8,8 +8,21 @@ const INPUT_TRIANGLES_URL = "http://defwentz.github.io/assets/triangles.json"; /
 const INPUT_SPHERES_URL = "http://defwentz.github.io/assets/ellipsoids.json"; // ellipsoids file loc
 const INPUT_LIGHTS_URL = "http://defwentz.github.io/assets/lights.json"; // lights file loc
 var Eye = new vec4.fromValues(0.5,0.5,-0.5,1.0); // default eye position in world space
-var Center = new vec4.fromValues(0.5,0.5,0.0,1.0);
-var LookUp = new vec4.fromValues(0.0,1.0,0.0,1.0); 
+var LookAt = new vec4.fromValues(0.0,0.0,1.0,1.0);
+var LookUp = new vec4.fromValues(0.0,1.0,0.0,1.0);
+var Center;
+updateCenter();
+
+function updateCenter() {
+	var x = Eye[0]+LookAt[0];
+	var y = Eye[1]+LookAt[1];
+	var z = Eye[2]+LookAt[2];
+	var t = Eye[2]/(Eye[2]-z);
+	
+	var nx = Eye[0] + t*(x-Eye[0]);
+	var ny = Eye[1] + t*(y-Eye[1]);
+	Center = vec4.fromValues(nx,ny,0.0,1.0);
+}
 // var Light = {
 // 	pos: new vec4.fromValues(-1,3,-0.5,1.0), // default eye position in world space
 // 	clr: new vec4.fromValues(1.0,1.0,1.0,1.0)
@@ -402,6 +415,78 @@ function setMatrixUniforms() {
 	gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, nMatrix);
 }
 
+function animate() {
+	
+}
+	
+function tick() {
+	requestAnimFrame(tick);
+	renderScene();
+	animate();
+}
+
+var translateX = 0.0;
+var translateY = 0.0;
+var translateZ = 0.0;
+function setupListener() {
+	document.addEventListener('keydown', function(event) {
+	    if(event.keyCode == 65) {
+	        console.log('a')
+			Eye[0] += 0.01;
+			updateCenter();
+	    }
+	    else if(event.keyCode == 68) {
+	        console.log('d')
+			Eye[0] -= 0.01;
+			updateCenter();
+	    }
+		
+		else if(event.keyCode == 87) {
+	        console.log('w')
+			Eye[2] += 0.01;
+			updateCenter();
+	    }
+		else if(event.keyCode == 83) {
+	        console.log('s')
+			Eye[2] -= 0.01;
+			updateCenter();
+	    }
+		
+		else if(event.keyCode == 81) {
+	        console.log('q')
+			Eye[1] += 0.01;
+			updateCenter();
+	    }
+		else if(event.keyCode == 69) {
+	        console.log('w')
+			Eye[1] -= 0.01;
+			updateCenter();
+	    }
+		
+		else if(event.keyCode == 74) {
+	        console.log('j')
+			LookAt[0] += 0.01;
+			updateCenter();
+	    }
+		else if(event.keyCode == 76) {
+	        console.log('l')
+			LookAt[0] -= 0.01;
+			updateCenter();
+	    }
+		
+		else if(event.keyCode == 73) {
+	        console.log('i')
+			LookAt[1] += 0.01;
+			updateCenter();
+	    }
+		else if(event.keyCode == 75) {
+	        console.log('k')
+			LookAt[1] -= 0.01;
+			updateCenter();
+	    }
+	});
+}
+
 // render the loaded model
 function renderScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
@@ -464,7 +549,7 @@ function renderScene() {
     // console.log(mat4.str(pvmMatrix));,
 	
 	mat4.identity(mvMatrix);
-	// mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(-0.2, -0.2, 0.0));
+	//mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(translateX, translateY, translateZ));
 	
     // vertex buffer: activate and feed into vertex shader
     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer); // activate
@@ -491,14 +576,15 @@ function renderScene() {
 
 } // end render triangles
 
-
 /* MAIN -- HERE is where execution begins after window load */
 
 function main() {
-  
+	
+  setupListener();
   setupWebGL(); // set up the webGL environment
   loadTrianglesnEllipsoids(); // load in the triangles and ellipsoids from files
   setupShaders(); // setup the webGL shaders
-  renderScene(); // draw the triangles using webGL
+  tick();
+  //renderScene(); // draw the triangles using webGL
   
 } // end main

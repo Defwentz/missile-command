@@ -5,10 +5,18 @@
     <title>Prog 2: Rasterization Shell</title>
 
     <script type="text/javascript" src="gl-matrix-min.js"></script>
+	<script type="text/javascript" src="webgl-utils.js"></script>
     <script type="text/javascript" src="rasterize.js"></script>
   </head>
 
   <body onload="main();">
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
+	<div> 
+		a and d — translate view left and right along view X<br />
+		w and s — translate view forward and backward along view Z<br />
+		q and e — translate view up and down along view Y<br />
+		j and l — rotate view left and right around view Y (yaw)<br />
+		i and k — rotate view forward and backward around view X (pitch)<br />
+	</div>
   </body>
 </html>

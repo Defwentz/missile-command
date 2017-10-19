@@ -272,52 +272,58 @@ function setupShaders() {
 		attribute vec4 aVertexSpecular;
 		attribute float aVertexN;
 		
-		varying vec4 vColor;
 		varying vec4 vPosition;
-		varying vec3 vLVec;
-		varying vec3 vNVec;
-		varying vec3 vVVec;
-		varying vec3 vHVec;
+		varying vec3 vNormal;
 		
-		uniform vec3 uEyePos;
-		uniform vec3 uLightPos;
-		uniform vec3 uLightAmbi;
-		uniform vec3 uLightDiff;
-		uniform vec3 uLightSepc;
+		varying vec4 vAmbient;
+		varying vec4 vDiffuse;
+		varying vec4 vSpecular;
+		varying float vN;
 
         void main(void) {
 			vec4 mvPos = uMVMatrix * vec4(aVertexPosition, 1.0);
             gl_Position = upMatrix * mvPos; // use the untransformed position
+			
 			vPosition = vec4(aVertexPosition, 1.0);
-			
-			vLVec = normalize(uLightPos - mvPos.xyz);
-			vNVec = normalize(uNMatrix * aVertexNormal);
-			vVVec = normalize(uEyePos - mvPos.xyz);
-			vHVec = normalize(vVVec + vLVec);
-			
-			float NdotL = max(dot(vNVec, vLVec), 0.0);
-			float NdotH = max(dot(vNVec, vHVec), 0.0);
-			
-			vColor = aVertexAmbient*vec4(uLightAmbi,1.0)
-			+ aVertexDiffuse*vec4(uLightDiff,1.0) * NdotL
- 			+ aVertexSpecular*vec4(uLightSepc,1.0) * pow(NdotH, aVertexN);
+			vNormal = uNMatrix * aVertexNormal;
+			vAmbient = aVertexAmbient;
+			vDiffuse = aVertexDiffuse;
+			vSpecular = aVertexSpecular;
+			vN = aVertexN;
         }
     `;
 	
     // define fragment shader in essl using es6 template strings
     var fShaderCode = `
 		precision mediump float;
-		varying vec4 vColor;
+		
 		varying vec4 vPosition;
-		varying vec3 vLVec;
-		varying vec3 vNVec;
-		varying vec3 vVVec;
-		varying vec3 vHVec;
+		varying vec3 vNormal;
+		
+		varying vec4 vAmbient;
+		varying vec4 vDiffuse;
+		varying vec4 vSpecular;
+		varying float vN;
+		
+		// you can only use uniform once, apparently
+		uniform vec3 uEyePos;
+		uniform vec3 uLightPos;
+		uniform vec3 uLightAmbi;
+		uniform vec3 uLightDiff;
+		uniform vec3 uLightSepc;
 		
         void main(void) {
-            gl_FragColor = vColor;
+			vec3 vLVec = normalize(uLightPos - vPosition.xyz);
+			vec3 vNVec = normalize(vNormal);
+			vec3 vVVec = normalize(uEyePos - vPosition.xyz);
+			vec3 vHVec = normalize(vVVec + vLVec);
 			
+			float NdotL = max(dot(vNVec, vLVec), 0.0);
+			float NdotH = max(dot(vNVec, vHVec), 0.0);
 			
+			gl_FragColor = vAmbient*vec4(uLightAmbi,1.0)
+			+ vDiffuse*vec4(uLightDiff,1.0) * NdotL
+ 			+ vSpecular*vec4(uLightSepc,1.0) * pow(NdotH, vN);
         }
     `;
 	
@@ -415,9 +421,6 @@ function renderScene() {
 			                inputLights[i].y,
 			                inputLights[i].z
 			            );
-						console.log(inputLights[i].x,
-			                inputLights[i].y,
-			                inputLights[i].z)
 			gl.uniform3f(
 			                shaderProgram.lightAmbientUniform,
 			                inputLights[i].ambient[0],

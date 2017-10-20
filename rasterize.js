@@ -710,7 +710,7 @@ function setupListener() {
 			if(isCapsLockOn(event)) {
 				// rotate selection forward and backward around view X (pitch)
 				console.log('O');
-				rotateTE(-rotSpeed, vec3.fromValues(1,0,0));
+				rotateTE(+rotSpeed, vec3.fromValues(1,0,0));
 			} else {
 				// translate selection forward and backward along view Z
 		        console.log('o');
@@ -722,7 +722,7 @@ function setupListener() {
 			if(isCapsLockOn(event)) {
 				// rotate selection forward and backward around view X (pitch)
 				console.log('L');
-				rotateTE(+rotSpeed, vec3.fromValues(1,0,0));
+				rotateTE(-rotSpeed, vec3.fromValues(1,0,0));
 			} else {
 				// translate selection forward and backward along view Z
 		        console.log('l');
@@ -734,7 +734,7 @@ function setupListener() {
 			if(isCapsLockOn(event)) {
 				// rotate selection clockwise and counterclockwise around view Z (roll)
 				console.log('I');
-				rotateTE(-rotSpeed, vec3.fromValues(0,0,1));
+				rotateTE(+rotSpeed, vec3.fromValues(0,0,1));
 			} else {
 				// translate selection up and down along view Y
 		        console.log('i');
@@ -746,7 +746,7 @@ function setupListener() {
 			if(isCapsLockOn(event)) {
 				// rotate selection clockwise and counterclockwise around view Z (roll)
 				console.log('P');
-				rotateTE(+rotSpeed, vec3.fromValues(0,0,1));
+				rotateTE(-rotSpeed, vec3.fromValues(0,0,1));
 			} else {
 				// translate selection up and down along view Y
 		        console.log('p');

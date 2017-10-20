@@ -25,6 +25,7 @@ function updateCenter() {
 }
 
 /* webgl globals */
+// everything got 2 sets, first one contains triangles, second one contains ellipsoids
 var gl = null; // the all powerful gl object. It's all here folks!
 var vertexBuffers = [[],[]]; // this contains vertex coordinates in triples
 var triangleBuffers = [[],[]]; // this contains indices into vertexBuffer in triples
@@ -41,6 +42,8 @@ var specularWeights = [[],[]];
 
 var mvMatrix = [[],[]];
 var pMatrix = mat4.create();
+
+var numberofTri = 19; // this many slipt in both direction, for parameterization of ellipsoids
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -94,7 +97,7 @@ function setupWebGL() {
  
 } // end setupWebGL
 
-// read triangles in, load them into webgl buffers
+// read triangles and ellipsoids in, load them into webgl buffers
 function loadTrianglesnEllipsoids() {
     var inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles");
 	
@@ -111,7 +114,7 @@ function loadTrianglesnEllipsoids() {
 			
 		    var coordArray = []; // 1D array of vertex coords for WebGL
 		    var indexArray = []; // 1D array of vertex indices for WebGL
-			var normalArray = [];
+			var normalArray = [];// 1D array of normal vector for WebGL
 			
 			triBufferSizes[0][whichSet] = 0;
 			
@@ -163,7 +166,7 @@ function loadTrianglesnEllipsoids() {
 		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[0][whichSet]); // activate that buffer
 		    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
 	
-			normalBuffers[0][whichSet] = gl.createBuffer();
+			normalBuffers[0][whichSet] = gl.createBuffer();	// init empty normal vector buffer
 			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffers[0][whichSet]); // activate that buffer
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
         } // end for each triangle set 
@@ -172,14 +175,13 @@ function loadTrianglesnEllipsoids() {
 	
 	// part 2
     var inputElliposids = getJSONFile(INPUT_SPHERES_URL,"ellipsoids");
-	var numberofTri = 19; // this many slipt in both direction
 
     if (inputElliposids != String.null) {
 
         for (var whichSet=0; whichSet<inputElliposids.length; whichSet++) {
 		    var coordArray = []; // 1D array of vertex coords for WebGL
 		    var indexArray = []; // 1D array of vertex indices for WebGL
-			var normalArray = [];
+			var normalArray = [];// 1D array of normal vector for WebGL
 
 			triBufferSizes[1][whichSet] = 0;
 
@@ -269,11 +271,11 @@ function loadTrianglesnEllipsoids() {
 		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleBuffers[1][whichSet]); // activate that buffer
 		    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
 	
-			normalBuffers[1][whichSet] = gl.createBuffer();
+			normalBuffers[1][whichSet] = gl.createBuffer();	// init empty normal vector buffer
 			gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffers[1][whichSet]); // activate that buffer
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
 
-        } // end for each triangle set
+        } // end for each ellipsoids set
 
     } // end if ellipsoids found
 
@@ -284,7 +286,7 @@ function loadTrianglesnEllipsoids() {
 			mat4.identity(mvMatrix[i][j]);
 		}
 	}
-} // end load triangles
+} // end load triangles and ellipsoids
 
 var shaderProgram;
 
@@ -340,14 +342,14 @@ function setupShaders() {
 			
 			float NdotL = max(dot(vNVec, vLVec), 0.0);
 			
-			if(uModel == 1) {
+			if(uModel == 1) {		// blinn-phong
 				vec3 vHVec = normalize(vVVec + vLVec);
 				float NdotH = max(dot(vNVec, vHVec), 0.0);
 			
 				gl_FragColor = uShapeAmbient*vec4(uLightAmbi,1.0)
 				+ uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL
 	 			+ uShapeSpecular*vec4(uLightSepc,1.0) * pow(NdotH, uShapeN);
-			} else {
+			} else {				// phong
 				float LdotN = dot(vLVec, vNVec);
 				vec3 vRVec = normalize(2.0*LdotN*vNVec - vLVec);
 				float RdotV = max(dot(vRVec, vVVec), 0.0);
@@ -418,14 +420,9 @@ function setupShaders() {
     } // end catch
 } // end setup shaders
 
-function animate() {
-	
-}
-	
 function tick() {
 	requestAnimFrame(tick);
 	renderScene();
-	animate();
 }
 
 var movSpeed = 0.05;
@@ -474,10 +471,12 @@ function rotateTE(rad, axis) {
 		mat4.translate(mvMatrix[1][ellipIdx], mvMatrix[1][ellipIdx], vec3.fromValues(-center[0], -center[1], -center[2]));
 	}
 }
-	
+
+// part4-part7
 function setupListener() {
 	document.addEventListener('keydown', function(event) {
 		switch (event.keyCode) {
+		// part 4
 		case 65:
 			if(isCapsLockOn(event)) {
 				//  rotate view left and right around view Y (yaw)
@@ -535,15 +534,25 @@ function setupListener() {
 			updateCenter();
 			break;
 		case 81:
-	        console.log('q');
-			Eye[1] += movSpeed;
+			if(isCapsLockOn(event)) {
+				console.log('Q');
+			} else {
+		        console.log('q');
+				Eye[1] += movSpeed;
+			}
 			updateCenter();
 			break;
 		case 69:
-	        console.log('e');
-			Eye[1] -= movSpeed;
+			if(isCapsLockOn(event)) {
+				console.log('E');
+			} else {
+		        console.log('e');
+				Eye[1] -= movSpeed;
+			}
 			updateCenter();
 			break;
+			
+		// part 6
 		case 66:
 			// toggle from blinn-phong to phone
 			console.log('b');
@@ -607,7 +616,8 @@ function setupListener() {
 				}
 			}
 			break;
-			
+		
+		// part 5
 		case 32:
 			// deselect model
 			console.log('space');
@@ -619,9 +629,6 @@ function setupListener() {
 				deselectScale(1, ellipIdx);
 				ellipIdx = -1;
 			}
-			
-			// scale back to normal
-			
 			break;
 		case 37:
 			// traverse triangles
@@ -767,6 +774,7 @@ function setMatrixUniforms(mvMatrix) {
 function renderScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
 	
+	// TODO: deal with multiple light sources
 	var inputLights = getJSONFile(INPUT_LIGHTS_URL,"lights");
 	if(inputLights != String.null) {
 		gl.uniform3f(
@@ -816,8 +824,6 @@ function renderScene() {
 	mat4.perspective(pMatrix, fov, ratio, near, far);
 	
 	var lookat = mat4.create();
-	// mat4.lookAt(lookat, vec3.fromValues(0.5,0.5,-0.5), vec3.fromValues(0.0, 1.0, 0.0), vec3.fromValues(0.0, 0.0, 1.0));
-	// mat4.mul(pMatrix, pMatrix, lookat);
 	mat4.lookAt(lookat, Eye, Center, LookUp);
 	mat4.mul(pMatrix, pMatrix, lookat);
 	
@@ -906,7 +912,5 @@ function refresh() {
 	// adjust speed
 	movSpeed = document.getElementById("movSpd").value/100.0;
 	rotSpeed = document.getElementById("rotSpd").value/100.0;
-	
-	
 }
 

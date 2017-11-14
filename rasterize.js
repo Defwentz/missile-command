@@ -10,30 +10,36 @@ var viewRight = vec3.create()
 var temp = vec3.create()
 viewRight = vec3.normalize(viewRight,vec3.cross(temp,LookAt,LookUp));
 
-var numberofTri = 20-1; // this many slipt in both direction, for parameterization of ellipsoids
+var numberofTri = 15-1; // this many slipt in both direction, for parameterization of ellipsoids
 
 function loadTexture(url) {
 	var texture = gl.createTexture();
 	texture.img = new Image(); 
     texture.img.crossOrigin = "Anonymous";
+	texture.img.onload = function() {
+		handleLoadedTexture(texture);
+	}
     texture.img.src = url;
 	return texture
 }
 
 function handleLoadedTexture(texture) {
+	var img = texture.img
 	gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.img);
+	
+	if (isPowerOf2(img.width) && isPowerOf2(img.height)) {
+       // Yes, it's a power of 2. Generate mips.
+       gl.generateMipmap(gl.TEXTURE_2D);
+    } else {
+       // No, it's not a power of 2. Turn of mips and set
+       // wrapping to clamp to edge
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
     gl.bindTexture(gl.TEXTURE_2D, null);
-}
-
-function initTexture() {
-	var txt = loadTexture("https://ncsucgclass.github.io/prog3/sky.jpg");
-	txt.onload = function() {
-		handleLoadedTexture(txt);
-	};
 }
 
 // set up the webGL environment
@@ -55,8 +61,6 @@ function setupWebGL() {
     catch(e) {
       console.log(e);
     } // end catch
- 
-	initTexture();
 } // end setupWebGL
 
 // read triangles and ellipsoids in, load them into webgl buffers
@@ -78,6 +82,7 @@ function loadTrianglesnEllipsoids() {
 		    var coordArray = []; // 1D array of vertex coords for WebGL
 		    var indexArray = []; // 1D array of vertex indices for WebGL
 			var normalArray = [];// 1D array of normal vector for WebGL
+			var textArray = [];
 			
 			var center = vec3.create();
             // set up the vertex coord array
@@ -88,6 +93,9 @@ function loadTrianglesnEllipsoids() {
 				var normal = tri.normals[whichSetVert];
 				normalArray.push(normal[0], normal[1], normal[2]);
 				
+				var uv = tri.uvs[whichSetVert];
+				textArray.push(uv[0], uv[1]);
+				
 				vec3.add(center, center, vec3.fromValues(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]));
             } // end for vertices in set
 			vec3.scale(center, center, 1./tri.vertices.length);
@@ -96,6 +104,7 @@ function loadTrianglesnEllipsoids() {
 							tri.material.specular,
 							tri.material.n,
 							center)
+			obj.texture = loadTexture(INPUT_HEAD_URL + tri.material.texture);
             
             // set up the triangle index array, adjusting indices across sets
             for (whichSetTri=0; whichSetTri<tri.triangles.length; whichSetTri++) {
@@ -118,6 +127,9 @@ function loadTrianglesnEllipsoids() {
 			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer); // activate that buffer
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
 			
+		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.textureCoordBuffer); // activate that buffer
+		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(textArray),gl.STATIC_DRAW); // coords to that buffer
+			
 			objs[0].push(obj)
         } // end for each triangle set 
 		
@@ -132,6 +144,7 @@ function loadTrianglesnEllipsoids() {
 		    var coordArray = []; // 1D array of vertex coords for WebGL
 		    var indexArray = []; // 1D array of vertex indices for WebGL
 			var normalArray = [];// 1D array of normal vector for WebGL
+			var textArray = [];
 
 			var ellipsoid = inputElliposids[whichSet];
 			var ambient = ellipsoid.ambient;
@@ -141,7 +154,7 @@ function loadTrianglesnEllipsoids() {
 			
 			var obj = new GlObject(ambient, diffuse, specular, n, 
 								vec3.fromValues(ellipsoid.x, ellipsoid.y, ellipsoid.z))
-			
+			obj.texture = loadTexture(INPUT_HEAD_URL + ellipsoid.texture);
 			var a = ellipsoid.a;
 			var b = ellipsoid.b;
 			var c = ellipsoid.c;
@@ -181,6 +194,10 @@ function loadTrianglesnEllipsoids() {
 					var nToAddy = 2 * (1./bsqr) * vtxToAddy - 2 * ellipsoid.y / bsqr;
 					var nToAddz = 2 * (1./csqr) * vtxToAddz - 2 * ellipsoid.z / csqr;
 
+					//console.log((lon+Math.PI)/(2*Math.PI), (lat+Math.PI/2)/Math.PI)
+					var uv = vec2.fromValues((lon+Math.PI)/(2*Math.PI), (lat+Math.PI/2)/Math.PI);
+					textArray.push(uv[0], uv[1]);
+
 					var normal = vec3.fromValues(nToAddx, nToAddy, nToAddz);
 					vec3.normalize(normal, normal);
 					normalArray.push(normal[0], normal[1], normal[2]);
@@ -213,6 +230,9 @@ function loadTrianglesnEllipsoids() {
 	
 			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer); // activate that buffer
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
+			
+		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.textureCoordBuffer); // activate that buffer
+		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(textArray),gl.STATIC_DRAW); // coords to that buffer
 
 			objs[1].push(obj)
         } // end for each ellipsoids set
@@ -231,9 +251,11 @@ function setupShaders() {
 		
         attribute vec3 aVertexPosition;
 		attribute vec3 aVertexNormal;
+		attribute vec2 aVertexTextCoord;
 		
 		varying vec4 vPosition;
 		varying vec3 vNormal;
+		varying vec2 vTextCoord;
 
         void main(void) {
 			vec4 mvPos = uMVMatrix * vec4(aVertexPosition, 1.0);
@@ -241,6 +263,7 @@ function setupShaders() {
 			
 			vPosition = vec4(aVertexPosition, 1.0);
 			vNormal = uNMatrix * aVertexNormal;
+			vTextCoord = aVertexTextCoord;
         }
     `;
 	
@@ -250,6 +273,7 @@ function setupShaders() {
 		
 		varying vec4 vPosition;
 		varying vec3 vNormal;
+		varying vec2 vTextCoord;
 		
 		// you can only use uniform once, apparently
 		uniform vec4 uShapeAmbient;
@@ -265,29 +289,32 @@ function setupShaders() {
 		
 		uniform int uModel;
 		
+		uniform sampler2D uSampler;
+		
         void main(void) {
-			vec3 vLVec = normalize(uLightPos - vPosition.xyz);
-			vec3 vNVec = normalize(vNormal);
-			vec3 vVVec = normalize(uEyePos - vPosition.xyz);
-			
-			float NdotL = max(dot(vNVec, vLVec), 0.0);
-			
-			if(uModel == 1) {		// blinn-phong
-				vec3 vHVec = normalize(vVVec + vLVec);
-				float NdotH = max(dot(vNVec, vHVec), 0.0);
-			
-				gl_FragColor = uShapeAmbient*vec4(uLightAmbi,1.0)
-				+ uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL
-	 			+ uShapeSpecular*vec4(uLightSepc,1.0) * pow(NdotH, uShapeN);
-			} else {				// phong
-				float LdotN = dot(vLVec, vNVec);
-				vec3 vRVec = normalize(2.0*LdotN*vNVec - vLVec);
-				float RdotV = max(dot(vRVec, vVVec), 0.0);
-				
-				gl_FragColor = uShapeAmbient*vec4(uLightAmbi,1.0)
-				+ uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL
-	 			+ uShapeSpecular*vec4(uLightSepc,1.0) * pow(RdotV, uShapeN);
-			}
+			gl_FragColor = texture2D(uSampler, vec2(vTextCoord.s, vTextCoord.t));
+			// vec3 vLVec = normalize(uLightPos - vPosition.xyz);
+			// vec3 vNVec = normalize(vNormal);
+			// vec3 vVVec = normalize(uEyePos - vPosition.xyz);
+			//
+			// float NdotL = max(dot(vNVec, vLVec), 0.0);
+			//
+			// if(uModel == 1) {		// blinn-phong
+			// 	vec3 vHVec = normalize(vVVec + vLVec);
+			// 	float NdotH = max(dot(vNVec, vHVec), 0.0);
+			//
+			// 	gl_FragColor = uShapeAmbient*vec4(uLightAmbi,1.0)
+			// 	+ uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL
+			// 	 			+ uShapeSpecular*vec4(uLightSepc,1.0) * pow(NdotH, uShapeN);
+			// } else {				// phong
+			// 	float LdotN = dot(vLVec, vNVec);
+			// 	vec3 vRVec = normalize(2.0*LdotN*vNVec - vLVec);
+			// 	float RdotV = max(dot(vRVec, vVVec), 0.0);
+			//
+			// 	gl_FragColor = uShapeAmbient*vec4(uLightAmbi,1.0)
+			// 	+ uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL
+			// 	 			+ uShapeSpecular*vec4(uLightSepc,1.0) * pow(RdotV, uShapeN);
+			// }
         }
     `;
 	
@@ -325,6 +352,9 @@ function setupShaders() {
 				shaderProgram.vertexNormalAttribute = 
 					gl.getAttribLocation(shaderProgram, "aVertexNormal");
 				gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+				shaderProgram.vertexTextCoordAttribute = 
+					gl.getAttribLocation(shaderProgram, "aVertexTextCoord");
+				gl.enableVertexAttribArray(shaderProgram.vertexTextCoordAttribute);
 				
 				shaderProgram.shapeAmbientUniform = gl.getUniformLocation(shaderProgram, "uShapeAmbient");
 				shaderProgram.shapeDiffuseUniform = gl.getUniformLocation(shaderProgram, "uShapeDiffuse");
@@ -341,6 +371,7 @@ function setupShaders() {
 				shaderProgram.lightAmbientUniform = gl.getUniformLocation(shaderProgram, "uLightAmbi");
 				shaderProgram.lightDiffuseUniform = gl.getUniformLocation(shaderProgram, "uLightDiff");
 				shaderProgram.lightSpecularUniform = gl.getUniformLocation(shaderProgram, "uLightSepc");
+				shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -403,8 +434,6 @@ function setLightingUniform() {
 function renderScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
 	
-	setLightingUniform();
-	
 	var pMatrix = mat4.create(); // projection matrix
     var vMatrix = mat4.create(); // view matrix
     var mMatrix = mat4.create(); // model matrix
@@ -445,6 +474,13 @@ function renderScene() {
 	
 			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer);
 			gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
+			
+			gl.bindBuffer(gl.ARRAY_BUFFER, obj.textureCoordBuffer);
+			gl.vertexAttribPointer(shaderProgram.vertexTextCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+		
+			gl.activeTexture(gl.TEXTURE0);
+		    gl.bindTexture(gl.TEXTURE_2D, obj.texture);
+		    gl.uniform1i(shaderProgram.samplerUniform, 0);
 		
 		    // triangle buffer: activate and render
 		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,obj.triangleBuffer); // activate
@@ -456,12 +492,15 @@ function renderScene() {
 /* MAIN -- HERE is where execution begins after window load */
 
 function main() {
-	
   setupListener();
   setupWebGL(); // set up the webGL environment
-  loadTrianglesnEllipsoids(); // load in the triangles and ellipsoids from files
-  setupShaders(); // setup the webGL shaders
-  tick();
-  //renderScene(); // draw the triangles using webGL
+  dummy = loadTexture("http://defwentz.github.io/assets/dummy.png");
+  dummy.img.onload = function() {
+  	handleLoadedTexture(dummy);
+    loadTrianglesnEllipsoids(); // load in the triangles and ellipsoids from files
+    setupShaders(); // setup the webGL shaders
+	setLightingUniform();
+    tick();
+  }
   
 } // end main

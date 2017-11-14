@@ -4,11 +4,13 @@ var shaderProgram;
 // everything got 2 sets, first one contains triangles, second one contains ellipsoids
 var objs = [[],[]];
 
+var dummy = null;
+
 /* constants */
 const WIN_Z = 0;  // default graphics window z coord in world space
 const WIN_LEFT = 0; const WIN_RIGHT = 1;  // default left and right x coords in world space
 const WIN_BOTTOM = 0; const WIN_TOP = 1;  // default top and bottom y coords in world space
-const INPUT_HEAD_URL = "http://defwentz.github.io/assets/" // header url
+const INPUT_HEAD_URL = "https://ncsucgclass.github.io/prog3/" // header url
 const INPUT_TRIANGLES_URL = "triangles.json"; // triangles file loc
 const INPUT_SPHERES_URL = "ellipsoids.json"; // ellipsoids file loc
 const INPUT_LIGHTS_URL = "lights.json"; // lights file loc
@@ -45,4 +47,8 @@ function getJSONFile(url,descr) {
 
 function isCapsLockOn(e) {
 	return event.getModifierState && event.getModifierState( 'CapsLock' );
+}
+
+function isPowerOf2(value) {
+  return (value & (value - 1)) == 0;
 }

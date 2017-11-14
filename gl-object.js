@@ -2,10 +2,12 @@ function GlObject(ambient, diffuse, specular, n, center) {
 	
 	this.vertexBuffer = gl.createBuffer() // this contains vertex coordinates in triples
 	this.triangleBuffer = gl.createBuffer() // this contains indices into vertexBuffer in triples
-	this.normalBuffer = gl.createBuffer()
 	this.triBufferSize = 0 // the number of indices in the triangle buffer
-	this.center = center
+	this.normalBuffer = gl.createBuffer()
+	this.textureCoordBuffer = gl.createBuffer()
 	
+	this.texture = dummy
+	this.center = center
 	this.ambient = ambient
 	this.diffuse = diffuse
 	this.specular = specular

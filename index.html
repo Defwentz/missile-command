@@ -6,6 +6,9 @@
 
     <script type="text/javascript" src="gl-matrix-min.js"></script>
 	<script type="text/javascript" src="webgl-utils.js"></script>
+	<script type="text/javascript" src="globals.js"></script>
+	<script type="text/javascript" src="gl-object.js"></script>
+	<script type="text/javascript" src="controls.js"></script>
     <script type="text/javascript" src="rasterize.js"></script>
 	<script type="text/javascript">
 	function showVal(id, des, val) {
@@ -18,47 +21,50 @@
 
   <body onload="main();">
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
-	<button onclick="refresh()">Refresh</button>
-	Click refresh button after adjusting the sliders<br />
-	<div id="sliderContainer">
-	  <div id="canvasWtext">canvas width: 512</div>
-	  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasW"
-	   oninput="showVal('canvasWtext', 'canvas width: ', this.value)">
-	  <div id="canvasHtext">canvas height: 512</div>
-	  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasH"
-	  oninput="showVal('canvasHtext', 'canvas height: ', this.value)">
-	  <div id="movSpdtext">translate speed: 0.02</div>
-	  <input type="range" min="1" max="50" value="2" class="slider" id="movSpd"
-	  oninput="showVal('movSpdtext', 'translate speed: ', this.value/100.0)">
-	  <div id="rotSpdtxt">rotate speed: 0.05</div>
-	  <input type="range" min="1" max="50" value="5" class="slider" id="rotSpd"
-	  oninput="showVal('rotSpdtxt', 'rotate speed: ', this.value/100.0)">
-	</div>
-	<div> 
-		Please use <b>caps lock</b> for uppercase key<br />
+	<div id="controls">
+		<div id="sliderContainer">
+		  <div id="canvasWtext">canvas width: 512</div>
+		  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasW"
+		   oninput="showVal('canvasWtext', 'canvas width: ', this.value)">
+		  <div id="canvasHtext">canvas height: 512</div>
+		  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasH"
+		  oninput="showVal('canvasHtext', 'canvas height: ', this.value)">
+		  <div id="movSpdtext">translate speed: 0.02</div>
+		  <input type="range" min="1" max="50" value="2" class="slider" id="movSpd"
+		  oninput="showVal('movSpdtext', 'translate speed: ', this.value/100.0)">
+		  <div id="rotSpdtxt">rotate speed: 0.05</div>
+		  <input type="range" min="1" max="50" value="5" class="slider" id="rotSpd"
+		  oninput="showVal('rotSpdtxt', 'rotate speed: ', this.value/100.0)">
+		</div>
+		<button onclick="refresh()">Refresh</button>
+		Click refresh button after adjusting the sliders<br />
 		<br />
-		a and d — translate view left and right along view X<br />
-		w and s — translate view forward and backward along view Z<br />
-		q and e — translate view up and down along view Y<br />
-		A and D — rotate view left and right around view Y (yaw)<br />
-		W and S — rotate view forward and backward around view X (pitch)<br />
-		<br />
-		left and right — select and highlight the next/previous triangle set (previous off)<br />
-		up and down — select and highlight the next/previous ellipsoid (previous off)<br />
-		space — deselect and turn off highlight<br />
-		<br />
-		b — toggle between Phong and Blinn-Phong lighting<br />
-		n — increment the specular integer exponent by 1 (wrap from 20 to 0)<br />
-		1 — increase the ambient weight by 0.1 (wrap from 1 to 0)<br />
-		2 — increase the diffuse weight by 0.1 (wrap from 1 to 0)<br />
-		3 — increase the specular weight by 0.1 (wrap from 1 to 0)<br />
-		<br />
-		k and ; — translate selection left and right along view X<br />
-		o and l — translate selection forward and backward along view Z<br />
-		i and p — translate selection up and down along view Y<br />
-		K and : — rotate selection left and right around view Y (yaw)<br />
-		O and L — rotate selection forward and backward around view X (pitch)<br />
-		I and P — rotate selection clockwise and counterclockwise around view Z (roll)<br />
+		<div> 
+			Please use <b>caps lock</b> for uppercase key<br />
+			<br />
+			a and d — translate view left and right along view X<br />
+			w and s — translate view forward and backward along view Z<br />
+			q and e — translate view up and down along view Y<br />
+			A and D — rotate view left and right around view Y (yaw)<br />
+			W and S — rotate view forward and backward around view X (pitch)<br />
+			<br />
+			left and right — select and highlight the next/previous triangle set (previous off)<br />
+			up and down — select and highlight the next/previous ellipsoid (previous off)<br />
+			space — deselect and turn off highlight<br />
+			<br />
+			b — toggle between Phong and Blinn-Phong lighting<br />
+			n — increment the specular integer exponent by 1 (wrap from 20 to 0)<br />
+			1 — increase the ambient weight by 0.1 (wrap from 1 to 0)<br />
+			2 — increase the diffuse weight by 0.1 (wrap from 1 to 0)<br />
+			3 — increase the specular weight by 0.1 (wrap from 1 to 0)<br />
+			<br />
+			k and ; — translate selection left and right along view X<br />
+			o and l — translate selection forward and backward along view Z<br />
+			i and p — translate selection up and down along view Y<br />
+			K and : — rotate selection left and right around view Y (yaw)<br />
+			O and L — rotate selection forward and backward around view X (pitch)<br />
+			I and P — rotate selection clockwise and counterclockwise around view Z (roll)<br />
+		</div>
 	</div>
   </body>
 </html>

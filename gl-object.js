@@ -30,6 +30,8 @@ function GlObject(ambient, diffuse, specular, n, center) {
 		return aCenter
 	}
 	
+	// doesn't matter if it's negative(which get turned into positive because vec3.len is always positive)
+	// it doesn't gets rendered anyway
 	this.depth = function(eye) {
 		var newCenter = this.actualCenter()
 		var dp = vec3.create()

@@ -7,6 +7,7 @@ function GlObject(ambient, diffuse, specular, n, center) {
 	this.textureCoordBuffer = gl.createBuffer()
 	
 	this.texture = dummy
+	this.alpha = 1.0
 	this.center = center
 	this.ambient = ambient
 	this.diffuse = diffuse
@@ -23,7 +24,20 @@ function GlObject(ambient, diffuse, specular, n, center) {
 	this.mMatrix = mat4.create()
 	this.translation = vec3.fromValues(0,0,0)
 	
-	this.setMaterialUniform =  function (a, d, s, rn) {
+	this.actualCenter = function() {
+		var aCenter = vec3.clone(this.center)
+		vec3.add(aCenter, aCenter, this.translation)
+		return aCenter
+	}
+	
+	this.depth = function(eye) {
+		var newCenter = this.actualCenter()
+		var dp = vec3.create()
+		vec3.sub(dp, newCenter, eye)
+		return vec3.len(dp)
+	}
+	
+	this.setMaterialUniform =  function (a, d, s, rn, al) {
 		gl.uniform4f(a,
             this.ambient[0]*this.ambientWeight,
             this.ambient[1]*this.ambientWeight,
@@ -43,8 +57,10 @@ function GlObject(ambient, diffuse, specular, n, center) {
 			1.0
 		)
 		gl.uniform1f(rn, this.n)
+		gl.uniform1f(al, this.alpha)
 	}
 	
+	// from prog2 solution
 	this.doTransform = function() {
 		var zAxis = vec3.create(), sumRotation = mat4.create(), temp = mat4.create(), negCtr = vec3.create()
 

@@ -21,6 +21,7 @@ function setupListener() {
 			if(id != -1) {
 				var obj = objs[i][id];
 				vec3.add(obj.translation, obj.translation, vec3.fromValues(x, y, z));
+				//console.log(obj.depth(vec3.fromValues(0.5,0.5,-0.5)))
 			}
 		}
 	}

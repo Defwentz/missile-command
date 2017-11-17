@@ -1,3 +1,18 @@
+#myWebGLCanvas {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 10;
+}
+
+#myImageCanvas {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 0;
+}
+
+
 #controls {
 	float: right;
 }

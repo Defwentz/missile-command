@@ -10,7 +10,7 @@ var viewRight = vec3.create()
 var temp = vec3.create()
 viewRight = vec3.normalize(viewRight,vec3.cross(temp,LookAt,LookUp));
 
-var numberofTri = 15-1; // this many slipt in both direction, for parameterization of ellipsoids
+var numberofTri = 30-1; // this many slipt in both direction, for parameterization of ellipsoids
 
 function loadTexture(url) {
 	var texture = gl.createTexture();
@@ -23,6 +23,7 @@ function loadTexture(url) {
 	return texture
 }
 
+// code from https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
 function handleLoadedTexture(texture) {
 	var img = texture.img
 	gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -44,6 +45,18 @@ function handleLoadedTexture(texture) {
 
 // set up the webGL environment
 function setupWebGL() {
+	// Get the image canvas, render an image in it
+	     var imageCanvas = document.getElementById("myImageCanvas"); // create a 2d canvas
+	      var cw = imageCanvas.width, ch = imageCanvas.height; 
+	      imageContext = imageCanvas.getContext("2d"); 
+	      var bkgdImage = new Image(); 
+	      bkgdImage.crossOrigin = "Anonymous";
+	      bkgdImage.src = "https://ncsucgclass.github.io/prog3/sky.jpg";
+	      bkgdImage.onload = function(){
+	          var iw = bkgdImage.width, ih = bkgdImage.height;
+	          imageContext.drawImage(bkgdImage,0,0,iw,ih,0,0,cw,ch);   
+	     } // end onload callback
+	
     // Get the canvas and context
     var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
     gl = canvas.getContext("webgl"); // get a webgl object from it
@@ -55,6 +68,9 @@ function setupWebGL() {
         gl.clearColor(0.0, 0.0, 0.0, 1.0); // use black when we clear the frame buffer
         gl.clearDepth(1.0); // use max when we clear the depth buffer
         gl.enable(gl.DEPTH_TEST); // use hidden surface removal (with zbuffering)
+		//gl.disable(gl.DEPTH_TEST);
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
     } // end try
     
@@ -105,6 +121,7 @@ function loadTrianglesnEllipsoids() {
 							tri.material.n,
 							center)
 			obj.texture = loadTexture(INPUT_HEAD_URL + tri.material.texture);
+			obj.alpha = tri.material.alpha;
             
             // set up the triangle index array, adjusting indices across sets
             for (whichSetTri=0; whichSetTri<tri.triangles.length; whichSetTri++) {
@@ -155,6 +172,7 @@ function loadTrianglesnEllipsoids() {
 			var obj = new GlObject(ambient, diffuse, specular, n, 
 								vec3.fromValues(ellipsoid.x, ellipsoid.y, ellipsoid.z))
 			obj.texture = loadTexture(INPUT_HEAD_URL + ellipsoid.texture);
+			obj.alpha = ellipsoid.alpha;
 			var a = ellipsoid.a;
 			var b = ellipsoid.b;
 			var c = ellipsoid.c;
@@ -290,14 +308,32 @@ function setupShaders() {
 		uniform int uModel;
 		
 		uniform sampler2D uSampler;
+		uniform float uAlpha;
 		
         void main(void) {
-			gl_FragColor = texture2D(uSampler, vec2(vTextCoord.s, vTextCoord.t));
-			// vec3 vLVec = normalize(uLightPos - vPosition.xyz);
-			// vec3 vNVec = normalize(vNormal);
-			// vec3 vVVec = normalize(uEyePos - vPosition.xyz);
-			//
-			// float NdotL = max(dot(vNVec, vLVec), 0.0);
+			
+			vec3 vLVec = normalize(uLightPos - vPosition.xyz);
+			vec3 vNVec = normalize(vNormal);
+			vec3 vVVec = normalize(uEyePos - vPosition.xyz);
+
+			float NdotL = max(dot(vNVec, vLVec), 0.0);
+			
+			vec3 vHVec = normalize(vVVec + vLVec);
+			float NdotH = max(dot(vNVec, vHVec), 0.0);
+
+			// blinn-phong
+			vec4 fragColor = uShapeAmbient*vec4(uLightAmbi,1.0) + 
+					uShapeDiffuse*vec4(uLightDiff,1.0) * NdotL + 
+					uShapeSpecular*vec4(uLightSepc,1.0) * pow(NdotH, uShapeN);
+					
+			vec4 txtColor = texture2D(uSampler, vec2(vTextCoord.s, vTextCoord.t));
+			
+			if (uModel == 1) {		// modulate: C = CfCt, A = AfAt
+				gl_FragColor = vec4(txtColor.rgb * fragColor.rgb, txtColor.a * uAlpha);
+			} else {				// replace: C = Ct, A = At
+				gl_FragColor = vec4(txtColor.rgb, txtColor.a);
+			}
+			
 			//
 			// if(uModel == 1) {		// blinn-phong
 			// 	vec3 vHVec = normalize(vVVec + vLVec);
@@ -372,6 +408,7 @@ function setupShaders() {
 				shaderProgram.lightDiffuseUniform = gl.getUniformLocation(shaderProgram, "uLightDiff");
 				shaderProgram.lightSpecularUniform = gl.getUniformLocation(shaderProgram, "uLightSepc");
 				shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
+				shaderProgram.alphaUniform = gl.getUniformLocation(shaderProgram, "uAlpha");
             } // end if no shader program link errors
         } // end if no compile errors
     } // end try 
@@ -390,16 +427,6 @@ function setLightingUniform() {
 	// TODO: deal with multiple light sources
 	var inputLights = getJSONFile(INPUT_LIGHTS_URL,"lights");
 	if(inputLights != String.null) {
-		gl.uniform3f(
-		                shaderProgram.eyePosUniform,
-		                Eye[0],
-		                Eye[1],
-		                Eye[2]
-		            );
-		gl.uniform1i(
-		                shaderProgram.ModelSelectionUniform,
-		                modelSelection
-		            );
 		for(var i=0; i<inputLights.length; i++) {
 			gl.uniform3f(
 			                shaderProgram.lightPosUniform,
@@ -432,6 +459,7 @@ function setLightingUniform() {
 
 // render the loaded model
 function renderScene() {
+	gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
 	
 	var pMatrix = mat4.create(); // projection matrix
@@ -451,43 +479,87 @@ function renderScene() {
 	mat4.lookAt(lookat, Eye, Center, LookUp);
 	mat4.mul(pMatrix, pMatrix, lookat);
 	
-	for(var j = 0; j < objs.length; j++) {
-		for(var i = 0; i < objs[j].length; i++) {
-			var obj = objs[j][i]
-			
-			obj.doTransform()
-		    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, obj.mMatrix);
-			gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+	gl.uniform3f(
+	                shaderProgram.eyePosUniform,
+	                Eye[0],
+	                Eye[1],
+	                Eye[2]
+	            );
+	gl.uniform1i(
+	                shaderProgram.ModelSelectionUniform,
+	                modelSelection
+	            );
 	
-			var nMatrix = mat3.create();
-			mat3.normalFromMat4(nMatrix, obj.mMatrix);
-			gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, nMatrix);
-			
-			obj.setMaterialUniform(shaderProgram.shapeAmbientUniform,
-								shaderProgram.shapeDiffuseUniform,
-								shaderProgram.shapeSpecularUniform,
-								shaderProgram.shapeNUniform);
-			
-		    // vertex buffer: activate and feed into vertex shader
-		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.vertexBuffer); // activate
-		    gl.vertexAttribPointer(shaderProgram.vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
+	var flattened = objs.reduce((a, b) => a.concat(b), []);
+	Eye.xyz = vec3.fromValues(Eye[0], Eye[1], Eye[2]);
 	
-			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer);
-			gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
-			
-			gl.bindBuffer(gl.ARRAY_BUFFER, obj.textureCoordBuffer);
-			gl.vertexAttribPointer(shaderProgram.vertexTextCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-		
-			gl.activeTexture(gl.TEXTURE0);
-		    gl.bindTexture(gl.TEXTURE_2D, obj.texture);
-		    gl.uniform1i(shaderProgram.samplerUniform, 0);
-		
-		    // triangle buffer: activate and render
-		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,obj.triangleBuffer); // activate
-		    gl.drawElements(gl.TRIANGLES,obj.triBufferSize,gl.UNSIGNED_SHORT,0); // render
+	var opaques = [];
+	var transparents = [];
+
+	for(var i = 0; i < flattened.length; i++) {
+		if(flattened[i].alpha >= 1.0) {
+			opaques.push(flattened[i]);
+		} else {
+			transparents.push(flattened[i]);
 		}
 	}
+	//console.log(opaques.length, transparents.length)
+	//console.log(flattened[0].center.xyz)
+	transparents.sort(function (a, b) {
+		return b.depth(Eye.xyz) - a.depth(Eye.xyz);
+	});
+	
+	gl.depthMask(true);
+	for(var i = 0; i < opaques.length; i++) {
+		renderobj(opaques[i], pMatrix);
+	}
+	gl.depthMask(false);
+	for(var i = 0; i < transparents.length; i++) {
+		renderobj(transparents[i], pMatrix);
+	}
+
+	// for(var j = 0; j < objs.length; j++) {
+	// 	for(var i = 0; i < objs[j].length; i++) {
+	// 		var obj = objs[j][i]
+	//
+	// 		renderobj(obj, pMatrix)
+	// 	}
+	// }
 } // end render triangles
+
+function renderobj(obj, pMatrix) {
+	obj.doTransform()
+    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, obj.mMatrix);
+	gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+
+	var nMatrix = mat3.create();
+	mat3.normalFromMat4(nMatrix, obj.mMatrix);
+	gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, nMatrix);
+	
+	obj.setMaterialUniform(shaderProgram.shapeAmbientUniform,
+						shaderProgram.shapeDiffuseUniform,
+						shaderProgram.shapeSpecularUniform,
+						shaderProgram.shapeNUniform,
+						shaderProgram.alphaUniform);
+	
+    // vertex buffer: activate and feed into vertex shader
+    gl.bindBuffer(gl.ARRAY_BUFFER,obj.vertexBuffer); // activate
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttrib,3,gl.FLOAT,false,0,0); // feed
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer);
+	gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, obj.textureCoordBuffer);
+	gl.vertexAttribPointer(shaderProgram.vertexTextCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+	gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, obj.texture);
+    gl.uniform1i(shaderProgram.samplerUniform, 0);
+
+    // triangle buffer: activate and render
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,obj.triangleBuffer); // activate
+    gl.drawElements(gl.TRIANGLES,obj.triBufferSize,gl.UNSIGNED_SHORT,0); // render
+}
 
 /* MAIN -- HERE is where execution begins after window load */
 

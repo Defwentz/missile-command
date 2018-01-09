@@ -1,7 +1,7 @@
 /* GLOBAL CONSTANTS AND VARIABLES */
 
 /* assignment specific globals */
-var Eye = new vec4.fromValues(0.5,0.5,-0.5,1.0); // default eye position in world space
+var Eye = new vec4.fromValues(0.5,0.5,-1.5,1.0); // default eye position in world space
 var LookAt = new vec4.fromValues(0.0,0.0,1.0,1.0);
 var LookUp = new vec4.fromValues(0.0,1.0,0.0,1.0);
 var Center = new vec4.fromValues(0.5,0.5,0.5,1.0);
@@ -11,6 +11,20 @@ var temp = vec3.create()
 viewRight = vec3.normalize(viewRight,vec3.cross(temp,LookAt,LookUp));
 
 var numberofTri = 30-1; // this many slipt in both direction, for parameterization of ellipsoids
+
+var friendMissileFact = [];
+var enemeyMissileFact = null;
+
+var suggestScreen = null;
+var goodjobScreen = null;
+var strategicCoords = [];
+var missiles = [[],[],[],[]];
+var buildings = [];
+var friendMissileNum = 20;
+var enemyAtkNum = [1,3,3,10,20,3];
+var enemyAtkTurn = 0;
+var friendMissileSpd = 0.008;
+var enemeyMissileSpd = 0.003;
 
 function loadTexture(url) {
 	var texture = gl.createTexture();
@@ -45,22 +59,49 @@ function handleLoadedTexture(texture) {
 
 // set up the webGL environment
 function setupWebGL() {
-	// Get the image canvas, render an image in it
-	     var imageCanvas = document.getElementById("myImageCanvas"); // create a 2d canvas
-	      var cw = imageCanvas.width, ch = imageCanvas.height; 
-	      imageContext = imageCanvas.getContext("2d"); 
-	      var bkgdImage = new Image(); 
-	      bkgdImage.crossOrigin = "Anonymous";
-	      bkgdImage.src = "https://ncsucgclass.github.io/prog3/sky.jpg";
-	      bkgdImage.onload = function(){
-	          var iw = bkgdImage.width, ih = bkgdImage.height;
-	          imageContext.drawImage(bkgdImage,0,0,iw,ih,0,0,cw,ch);   
-	     } // end onload callback
+	
+	// var pMatrix = mat4.create(); // projection matrix
+	//     var vMatrix = mat4.create(); // view matrix
+	//     var mMatrix = mat4.create(); // model matrix
+	//     var pvMatrix = mat4.create(); // hand * proj * view matrices
+	//     var pvmMatrix = mat4.create(); // hand * proj * view * model matrices
+	//
+	// mat4.identity(pMatrix);
+	// var fov = Math.PI/4;
+	// var ratio = 512/512.0;
+	// var near = 0.1;
+	// var far = 10.0;
+	// mat4.perspective(pMatrix, fov, ratio, near, far);
+	//
+	// var lookat = mat4.create();
+	// mat4.lookAt(lookat, Eye, Center, LookUp);
+	// mat4.mul(pMatrix, pMatrix, lookat);
 	
     // Get the canvas and context
-    var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
+	var canvas = document.getElementById("myWebGLCanvas"); // create a js canvas
     gl = canvas.getContext("webgl"); // get a webgl object from it
-    
+	
+	canvas.addEventListener("click", function( event ) {
+		if(gamestate == 1) {
+		    // display the current click count inside the clicked div
+		    event.target.textContent = "click count: " + event.detail;
+			var screenCoord = getMousePosition(event, canvas);
+			//console.log(screenCoord);
+			screenCoord.x = (canvas.width - screenCoord.x) / canvas.width;
+			screenCoord.y = (canvas.height - screenCoord.y) / canvas.height;
+			//
+			// // double x = 2.0 * winX / clientWidth - 1;
+			// //         double y = - 2.0 * winY / clientHeight + 1;
+			//     var viewProjectionInverse = mat4.create();
+			// mat4.invert(viewProjectionInverse, pMatrix);
+			//
+			// var coord = vec4.fromValues(screenCoord.x, screenCoord.y, 0,0);
+			// mat4.mul(coord, viewProjectionInverse, coord);
+			console.log(screenCoord);
+			launchMissile(screenCoord, friendMissileSpd);
+		}
+	}, false);
+  
     try {
       if (gl == null) {
         throw "unable to create gl context -- is your browser gl ready?";
@@ -80,183 +121,322 @@ function setupWebGL() {
 } // end setupWebGL
 
 // read triangles and ellipsoids in, load them into webgl buffers
-function loadTrianglesnEllipsoids() {
-    var inputTriangles = getJSONFile(INPUT_TRIANGLES_URL,"triangles");
+function loadBasic() {
+    var inputBasic = getJSONFile(INPUT_BASIC_URL,"basic");
 	
+	var objOffset = 0;
     var whichSetVert; // index of vertex in current triangle set
     var whichSetTri; // index of triangle in current triangle set
     var vtxBufferSize = 0; // the number of vertices in the vertex buffer
     var vtxToAdd = []; // vtx coords to add to the coord array
-    var indexOffset = vec3.create(); // the index offset for the current set
     var triToAdd = vec3.create(); // tri indices to add to the index array
 	
-    if (inputTriangles != String.null) { 
+    if (inputBasic != String.null) { 
         
-        for (var whichSet=0; whichSet<inputTriangles.length; whichSet++) {
-			var tri = inputTriangles[whichSet]
+        for (var whichSet=0; whichSet<inputBasic.length; whichSet++) {
+			var object = inputBasic[whichSet]
+			object.length = 0
+			
+			var center = vec3.create();
+			for(i=0; i< object.vertices.length; i++) {
+				vtxToAdd = object.vertices[i];
+				vec3.add(center, center, vec3.fromValues(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]));
+			}
+			vec3.scale(center, center, 1./object.vertices.length);
+			
+			for(i=0; i < object.coords.length; i++) {
+				var obj = new GlObject(object.material.ambient,
+								object.material.diffuse,
+								object.material.specular,
+								object.material.n,
+								center);
+				if (object.material.texture == "none") {
+					
+				} else {
+					obj.textureURL = INPUT_HEAD_URL + object.material.texture;
+					obj.texture = loadTexture(INPUT_HEAD_URL + object.material.texture);
+				}
+				obj.alpha = object.material.alpha;
+				vec3.add(obj.translation, obj.translation, vec3.fromValues(object.coords[i][0], object.coords[i][1], 0));
+				objs[0].push(obj);
+				objOffset++;
+				
+				if (whichSet == 0 || whichSet == 2) {
+					strategicCoords.push(object.coords[i]);
+				}
+				if(whichSet == 2) {
+					buildings.push(obj)
+				} else if(whichSet == 5) {
+					suggestScreen = obj;
+				} else if (whichSet == 6) {
+					goodjobScreen = obj;
+				}
+			}
 			
 		    var coordArray = []; // 1D array of vertex coords for WebGL
 		    var indexArray = []; // 1D array of vertex indices for WebGL
 			var normalArray = [];// 1D array of normal vector for WebGL
 			var textArray = [];
 			
-			var center = vec3.create();
-            // set up the vertex coord array
-            for (whichSetVert=0; whichSetVert<tri.vertices.length; whichSetVert++) {
-                vtxToAdd = tri.vertices[whichSetVert];
-                coordArray.push(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]);
-				
-				var normal = tri.normals[whichSetVert];
-				normalArray.push(normal[0], normal[1], normal[2]);
-				
-				var uv = tri.uvs[whichSetVert];
-				textArray.push(uv[0], uv[1]);
-				
-				vec3.add(center, center, vec3.fromValues(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]));
-            } // end for vertices in set
-			vec3.scale(center, center, 1./tri.vertices.length);
-			var obj = new GlObject(tri.material.ambient,
-							tri.material.diffuse,
-							tri.material.specular,
-							tri.material.n,
-							center)
-			obj.texture = loadTexture(INPUT_HEAD_URL + tri.material.texture);
-			obj.alpha = tri.material.alpha;
-            
             // set up the triangle index array, adjusting indices across sets
-            for (whichSetTri=0; whichSetTri<tri.triangles.length; whichSetTri++) {
-                vec3.add(triToAdd,indexOffset,tri.triangles[whichSetTri]);
-                indexArray.push(triToAdd[0],triToAdd[1],triToAdd[2]);
+            for (whichSetTri=0; whichSetTri<object.triangles.length; whichSetTri++) {
+				var tri = object.triangles[whichSetTri]
+				
+				var a = object.vertices[tri[0]];
+				var b = object.vertices[tri[1]];
+				var c = object.vertices[tri[2]];
+				var ab = vec3.create();
+				vec3.negate(ab, a);
+				vec3.add(ab, ab, b);
+				
+				var bc = vec3.create();
+				vec3.negate(bc, b);
+				vec3.add(bc, bc, c);
+				
+				var normal = vec3.create();
+				vec3.cross(normal, ab, bc);
+				vec3.normalize(normal, normal);
+				
+				for (i=0; i<tri.length; i++) {
+					vtxToAdd = object.vertices[tri[i]];
+					coordArray.push(vtxToAdd[0],vtxToAdd[1],vtxToAdd[2]);
+					
+					var uv = object.uvs[tri[i]];
+					textArray.push(uv[0], uv[1]);
+					
+					normalArray.push(normal[0], normal[1], normal[2]);
+					
+					indexArray.push(object.length);
+					object.length += 1;
+				}
+				
+				
             } // end for triangles in set
 			
-            // vtxBufferSize += inputTriangles[whichSet].vertices.length; // total number of vertices
-            obj.triBufferSize += tri.triangles.length; // total number of tris
-			obj.triBufferSize *= 3;
-			
-		    // send the vertex coords to webGL
-		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.vertexBuffer); // activate that buffer
-		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(coordArray),gl.STATIC_DRAW); // coords to that buffer
+			for(i=objOffset-object.coords.length; i < objOffset; i++) {
+				var obj = objs[0][i]
+				
+				if(whichSet == 0) {
+					var friendMissileFactA = new GlObjectFactory(
+						obj, 
+						coordArray,					    
+						indexArray,
+						normalArray,
+						textArray);
+					friendMissileFact.push(friendMissileFactA);
+				}
+				if(i == objOffset-object.coords.length && whichSet == 1) {
+					enemeyMissileFact = new GlObjectFactory(
+						obj, 
+						coordArray,					    
+						indexArray,
+						normalArray,
+						textArray);
+				}
+				
+				obj.triBufferSize += object.triangles.length; // total number of tris
+				obj.triBufferSize *= 3;
+			    // send the vertex coords to webGL
+			    gl.bindBuffer(gl.ARRAY_BUFFER,obj.vertexBuffer); // activate that buffer
+			    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(coordArray),gl.STATIC_DRAW); // coords to that buffer
     
-		    // send the triangle indices to webGL
-		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.triangleBuffer); // activate that buffer
-		    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
+			    // send the triangle indices to webGL
+			    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.triangleBuffer); // activate that buffer
+			    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
 	
-			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer); // activate that buffer
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer); // activate that buffer
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
 			
-		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.textureCoordBuffer); // activate that buffer
-		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(textArray),gl.STATIC_DRAW); // coords to that buffer
-			
-			objs[0].push(obj)
+			    gl.bindBuffer(gl.ARRAY_BUFFER,obj.textureCoordBuffer); // activate that buffer
+			    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(textArray),gl.STATIC_DRAW); // coords to that buffer
+			}
         } // end for each triangle set 
 		
     } // end if triangles found
-	
-	// part 2
-    var inputElliposids = getJSONFile(INPUT_SPHERES_URL,"ellipsoids");
-
-    if (inputElliposids != String.null) {
-
-        for (var whichSet=0; whichSet<inputElliposids.length; whichSet++) {
-		    var coordArray = []; // 1D array of vertex coords for WebGL
-		    var indexArray = []; // 1D array of vertex indices for WebGL
-			var normalArray = [];// 1D array of normal vector for WebGL
-			var textArray = [];
-
-			var ellipsoid = inputElliposids[whichSet];
-			var ambient = ellipsoid.ambient;
-			var diffuse = ellipsoid.diffuse;
-			var specular = ellipsoid.specular;
-			var n = ellipsoid.n;
-			
-			var obj = new GlObject(ambient, diffuse, specular, n, 
-								vec3.fromValues(ellipsoid.x, ellipsoid.y, ellipsoid.z))
-			obj.texture = loadTexture(INPUT_HEAD_URL + ellipsoid.texture);
-			obj.alpha = ellipsoid.alpha;
-			var a = ellipsoid.a;
-			var b = ellipsoid.b;
-			var c = ellipsoid.c;
-			var asqr = a*a;
-			var bsqr = b*b;
-			var csqr = c*c;
-            // set up the vertex coord array
-            for (var i=0; i<=numberofTri; i++) {
-				var lat = -Math.PI/2 + Math.PI * i/numberofTri;
-				var sinlat = Math.sin(lat);
-				var coslat = Math.cos(lat);
-
-				for (var j=0; j<=numberofTri; j++) {
-					var lon = -Math.PI + 2*Math.PI * j/numberofTri;
-					var sinlon = Math.sin(lon);
-					var coslon = Math.cos(lon);
-
-					var vtxToAddx = ellipsoid.x + a * coslat * coslon;
-					var vtxToAddy = ellipsoid.y + b * coslat * sinlon;
-					var vtxToAddz = ellipsoid.z + c * sinlat;
-
-	                coordArray.push(vtxToAddx,vtxToAddy,vtxToAddz);
-
-					// // A = 1/a^2, B = 1/b^2, C = 1/c^2
-					// D = E = F = 0
-					// G = - 2*x_c/a^2, H = - 2*y_c/b^2, I = - 2*z_c/c^2
-					//
-					// xn = 2*A*xi + D*yi + E*zi + G
-					// yn = 2*B*yi + D*xi + F*zi + H
-					// zn = 2*C*zi + E*xi + F*yi + I
-					// =>
-					// xn = 2*A*xi + G
-					// yn = 2*B*yi + H
-					// zn = 2*C*zi + I
-
-					var nToAddx = 2 * (1./asqr) * vtxToAddx - 2 * ellipsoid.x / asqr;
-					var nToAddy = 2 * (1./bsqr) * vtxToAddy - 2 * ellipsoid.y / bsqr;
-					var nToAddz = 2 * (1./csqr) * vtxToAddz - 2 * ellipsoid.z / csqr;
-
-					//console.log((lon+Math.PI)/(2*Math.PI), (lat+Math.PI/2)/Math.PI)
-					var uv = vec2.fromValues((lon+Math.PI)/(2*Math.PI), (lat+Math.PI/2)/Math.PI);
-					textArray.push(uv[0], uv[1]);
-
-					var normal = vec3.fromValues(nToAddx, nToAddy, nToAddz);
-					vec3.normalize(normal, normal);
-					normalArray.push(normal[0], normal[1], normal[2]);
-				}
-            } // end for vertices in set
-            // set up the vertex coord array
-            for (var i=0; i<numberofTri; i++) {
-				for (var j=0; j<numberofTri; j++) {
-					var first = (i * (numberofTri + 1)) + j;
-			        var second = first + numberofTri + 1;
-					idxs = [first,second,first+1];
-	                vec3.add(triToAdd,indexOffset,idxs);
-					indexArray.push(triToAdd[0],triToAdd[1],triToAdd[2]);
-					idxs = [second,second+1,first+1];
-	                vec3.add(triToAdd,indexOffset,idxs);
-					indexArray.push(triToAdd[0],triToAdd[1],triToAdd[2]);
-					
-					obj.triBufferSize += 2; // total number of tris
-				}
-            } // end for vertices in set
-			obj.triBufferSize *= 3;
-			
-		    // send the vertex coords to webGL
-		    gl.bindBuffer(gl.ARRAY_BUFFER, obj.vertexBuffer); // activate that buffer
-		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(coordArray),gl.STATIC_DRAW); // coords to that buffer
-    
-		    // send the triangle indices to webGL
-		    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.triangleBuffer); // activate that buffer
-		    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indexArray),gl.STATIC_DRAW); // indices to that buffer
-	
-			gl.bindBuffer(gl.ARRAY_BUFFER, obj.normalBuffer); // activate that buffer
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalArray), gl.STATIC_DRAW);
-			
-		    gl.bindBuffer(gl.ARRAY_BUFFER,obj.textureCoordBuffer); // activate that buffer
-		    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(textArray),gl.STATIC_DRAW); // coords to that buffer
-
-			objs[1].push(obj)
-        } // end for each ellipsoids set
-
-    } // end if ellipsoids found
+	console.log(objs)
 } // end load triangles and ellipsoids
+
+function setupEnvironment() {
+	for(j = 0; j < friendMissileFact.length; j++) {
+		missiles[j].push(friendMissileFact[j].model);
+		for(i = 0; i < friendMissileNum-1; i++) {
+			var newObj = friendMissileFact[j].createObject();
+			if(friendMissileFact[j].model.textureURL != null) {
+				newObj.texture = loadTexture(friendMissileFact[j].model.textureURL);
+			}
+			vec3.add(newObj.translation, newObj.translation, vec3.fromValues(i*0.001,0,i*0.01));
+			objs[0].push(newObj);
+			missiles[j].push(newObj);
+		}
+	}
+	goodjobScreen.rmFrom(goodjobScreen, objs[0]);
+}
+
+function setupEnemyAtk() {
+	if(enemyAtkTurn >= enemyAtkNum.length) {
+		return;
+	}
+	if(gametime % 200 == 0) {
+		console.log("enemy approach");
+		for(i = 0; i < enemyAtkNum[enemyAtkTurn]; i++) {
+			var newObj = enemeyMissileFact.createObject();
+			if(enemeyMissileFact.model.textureURL != null) {
+				newObj.texture = loadTexture(enemeyMissileFact.model.textureURL);
+			}
+			newObj.translation = vec3.create();
+			vec3.add(newObj.translation, newObj.translation, vec3.fromValues(Math.random(),randomDouble(1.5,3),0));
+
+			objs[0].push(newObj);
+			missiles[3].push(newObj);
+			newObj.target = randomInt(0,strategicCoords.length-1);
+			var target = strategicCoords[newObj.target];
+			launchMissileAt(newObj, {x:target[0],y:target[1]}, enemeyMissileSpd);
+		}
+		
+		enemyAtkTurn++;
+	}
+	
+	
+	// for(i = 0; i < enemyAtkNum; i++) {
+	// 	var newObj = enemeyMissileFact.createObject();
+	// 	if(enemeyMissileFact.model.textureURL != null) {
+	// 		newObj.texture = loadTexture(enemeyMissileFact.model.textureURL);
+	// 	}
+	// 	newObj.translation = vec3.create();
+	// 	vec3.add(newObj.translation, newObj.translation, vec3.fromValues(Math.random(),randomDouble(1.5,7),0));
+	//
+	// 	objs[0].push(newObj);
+	// 	missiles[3].push(newObj);
+	// 	newObj.target = randomInt(0,strategicCoords.length-1);
+	// 	var target = strategicCoords[newObj.target];
+	// 	launchMissileAt(newObj, {x:target[0],y:target[1]}, enemeyMissileSpd);
+	// }
+}
+
+function getClosestMssile(coord) {
+	var whichSpace = (Math.floor(coord.x*3));
+	var missile = null;
+	for(i = 0; i < missiles[whichSpace].length; i++) {
+		if(missiles[whichSpace][i].state == 0) {
+			missile = missiles[whichSpace][i];
+			return missile;
+		}
+	}
+	if(whichSpace != 1) {
+		for(i = 0; i < missiles[1].length; i++) {
+			if(missiles[1][i].state == 0) {
+				missile = missiles[1][i];
+				return missile;
+			}
+		}
+		for(i = 0; i < missiles[3-whichSpace].length; i++) {
+			if(missiles[3-whichSpace][i].state == 0) {
+				missile = missiles[3-whichSpace][i];
+				console.log("fse")
+				return missile;
+			} 
+		}
+	} else {
+		for(i = 0; i < missiles[0].length; i++) {
+			if(missiles[0][i].state == 0) {
+				missile = missiles[0][i];
+				return missile;
+			}
+		}
+		for(i = 0; i < missiles[2].length; i++) {
+			if(missiles[2][i].state == 0) {
+				missile = missiles[2][i];
+				return missile;
+			}
+		}
+	}
+	return null;
+}
+
+function launchMissile(coord,spd) {
+	launchMissileAt(getClosestMssile(coord), coord,spd);
+}
+
+function launchMissileAt(missile, coord, spd) {
+	if(missile != null) {
+		var dir = vec3.create();
+		vec3.copy(dir, missile.actualCenter());
+		vec3.sub(dir, vec3.fromValues(coord.x, coord.y, 0), dir);
+		vec3.normalize(dir, dir);
+		vec3.scale(dir, dir, spd);
+		missile.velocity = dir;
+		missile.launch(objs[0]);
+	}
+}
+
+function batteryExplode(which) {
+	for(i = 0; i < missiles[which].length; i++) {
+		if(missiles[which][i].state == 0) {
+			missiles[which][i].state = 2;
+			missiles[which][i].rmFrom(missiles[which][i],objs[0]);
+		}
+	}
+}
+
+function checkCollision() {
+	for(j = 0; j < missiles[3].length; j++) {
+		if(missiles[3][j].state == 1) {
+			for(xi = 0; xi < missiles.length-1; xi++) {
+				for(xj = 0; xj < missiles[xi].length; xj++) {
+					if(missiles[xi][xj].state == 1) {
+						var enemyMissileCenter = vec3.clone(missiles[3][j].actualCenter());
+						vec3.sub(enemyMissileCenter, enemyMissileCenter, missiles[xi][xj].actualCenter());
+						if(vec3.length(enemyMissileCenter) < 0.1) {
+							missiles[3][j].rmFrom(missiles[3][j],objs[0]);
+							missiles[3][j].state = 2;
+							missiles[xi][xj].rmFrom(missiles[xi][xj],objs[0]);
+							missiles[xi][xj].state = 2;
+						}
+					}
+				}
+			}
+			var enemyMissileCenter = vec3.clone(missiles[3][j].actualCenter());
+			vec3.sub(enemyMissileCenter, enemyMissileCenter, 
+				vec3.fromValues(strategicCoords[missiles[3][j].target][0], 
+					strategicCoords[missiles[3][j].target][1], 0));
+					
+			if(missiles[3][j].target < 3) {
+				if(vec3.length(enemyMissileCenter) < 0.1) {
+					missiles[3][j].rmFrom(missiles[3][j],objs[0]);
+					missiles[3][j].state = 2;
+					batteryExplode(missiles[3][j].target);
+				}
+			} else {
+				if(vec3.length(enemyMissileCenter) < 0.2) {
+					missiles[3][j].rmFrom(missiles[3][j],objs[0]);
+					missiles[3][j].state = 2;
+					buildings[missiles[3][j].target-3].rmFrom(buildings[missiles[3][j].target-3],objs[0]);
+				}
+			}
+		}
+	}
+}
+
+function checkIfOver() {
+	if(enemyAtkTurn >= enemyAtkNum.length) {
+		for(j = 0; j < missiles[3].length; j++) {
+			if(missiles[3][j].state != 2) {
+				return;
+			}
+		}
+		objs[0].push(goodjobScreen);
+		gamestate = 0;
+		
+	}
+	
+	for(j = 0; j < buildings.length; j++) {
+		if(buildings[j].state != 2) {
+			return;
+		}
+	}
+	objs[0].push(goodjobScreen);
+	gamestate = 0;
+}
 
 // setup the webGL shaders
 function setupShaders() {
@@ -420,6 +600,12 @@ function setupShaders() {
 
 function tick() {
 	requestAnimFrame(tick);
+	if(gamestate == 1) {
+		checkIfOver();
+		setupEnemyAtk();
+		checkCollision();
+		gametime++;
+	}
 	renderScene();
 }
 
@@ -459,7 +645,7 @@ function setLightingUniform() {
 
 // render the loaded model
 function renderScene() {
-	gl.clearColor(0, 0, 0, 0)
+	//gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // clear frame/depth buffers
 	
 	var pMatrix = mat4.create(); // projection matrix
@@ -503,8 +689,7 @@ function renderScene() {
 			transparents.push(flattened[i]);
 		}
 	}
-	//console.log(opaques.length, transparents.length)
-	//console.log(flattened[0].center.xyz)
+
 	transparents.sort(function (a, b) {
 		return b.depth(Eye.xyz) - a.depth(Eye.xyz);
 	});
@@ -528,7 +713,10 @@ function renderScene() {
 } // end render triangles
 
 function renderobj(obj, pMatrix) {
-	obj.doTransform()
+	if(gamestate == 1) {
+		obj.run();
+	}
+	obj.doTransform();
     gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, obj.mMatrix);
 	gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
 
@@ -569,7 +757,15 @@ function main() {
   dummy = loadTexture("http://defwentz.github.io/assets/dummy.png");
   dummy.img.onload = function() {
   	handleLoadedTexture(dummy);
-    loadTrianglesnEllipsoids(); // load in the triangles and ellipsoids from files
+    loadBasic(); // load in the triangles and ellipsoids from files
+	pauseGame = function() {
+		if(gamestate == 0) {
+			objs[0].push(suggestScreen);
+		} else {
+			suggestScreen.rmFrom(suggestScreen, objs[0]);
+		}
+	}
+	setupEnvironment();
     setupShaders(); // setup the webGL shaders
 	setLightingUniform();
     tick();

@@ -21,7 +21,7 @@ function setupListener() {
 			if(id != -1) {
 				var obj = objs[i][id];
 				vec3.add(obj.translation, obj.translation, vec3.fromValues(x, y, z));
-				//console.log(obj.depth(vec3.fromValues(0.5,0.5,-0.5)))
+				console.log(objs[i][id]);
 			}
 		}
 	}
@@ -136,7 +136,7 @@ function setupListener() {
 		case 66:
 			// toggle from blinn-phong to phone
 			console.log('b');
-	        modelSelection = 1 - modelSelection;
+	        //modelSelection = 1 - modelSelection;
 			break;
 		case 78:
 			// increase specular integer exponent
@@ -293,10 +293,29 @@ function setupListener() {
 				selectTranslate(0.0, -movSpeed, 0.0);
 			}
 			break;
+			
+		case 84:
+	        console.log('t');
+			gamestate = 1 - gamestate;
+			pauseGame();
+			break;
 		default:
 			console.log('irrevelent stuff');
 		}
 	});
+}
+
+var pauseGame = null;
+
+
+function getMousePosition(event, target) {
+	target = target || event.target;
+	var rect = target.getBoundingClientRect();
+
+	return {
+		x: event.clientX - rect.left,
+		y: event.clientY - rect.top,
+	}
 }
 
 // using code from toturial: https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html

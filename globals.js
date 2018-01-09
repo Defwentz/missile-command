@@ -6,11 +6,16 @@ var objs = [[],[]];
 
 var dummy = null;
 
+var gamestate = 0;
+var gametime = 0;
+
 /* constants */
 const WIN_Z = 0;  // default graphics window z coord in world space
 const WIN_LEFT = 0; const WIN_RIGHT = 1;  // default left and right x coords in world space
 const WIN_BOTTOM = 0; const WIN_TOP = 1;  // default top and bottom y coords in world space
-const INPUT_HEAD_URL = "https://ncsucgclass.github.io/prog3/" // header url
+const INPUT_HEAD_URL = "http://defwentz.github.io/assets/" // header url
+const TEXTURE_URL = "https://ncsucgclass.github.io/prog3/" // header url
+const INPUT_BASIC_URL = "basic.json"; // triangles file loc
 const INPUT_TRIANGLES_URL = "triangles.json"; // triangles file loc
 const INPUT_SPHERES_URL = "ellipsoids.json"; // ellipsoids file loc
 const INPUT_LIGHTS_URL = "lights.json"; // lights file loc
@@ -51,4 +56,14 @@ function isCapsLockOn(e) {
 
 function isPowerOf2(value) {
   return (value & (value - 1)) == 0;
+}
+
+function randomDouble(min,max)
+{
+    return Math.random()*(max-min)+min;
+}
+
+function randomInt(min,max)
+{
+    return Math.floor(Math.random()*(max-min+1)+min);
 }

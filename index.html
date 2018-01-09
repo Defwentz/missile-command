@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>Prog 2: Rasterization Shell</title>
+    <title>Missile Command</title>
 
     <script type="text/javascript" src="gl-matrix-min.js"></script>
 	<script type="text/javascript" src="webgl-utils.js"></script>
@@ -20,29 +20,15 @@
   </head>
 
   <body onload="main();">
-	<canvas id="myImageCanvas" width="512" height="512"></canvas>
     <canvas id="myWebGLCanvas" width="512" height="512"></canvas>
 	<div id="controls">
-		<div id="sliderContainer">
-		  <div id="canvasWtext">canvas width: 512</div>
-		  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasW"
-		   oninput="showVal('canvasWtext', 'canvas width: ', this.value)">
-		  <div id="canvasHtext">canvas height: 512</div>
-		  <input type="range" min="1" max="1024" value="512" class="slider" id="canvasH"
-		  oninput="showVal('canvasHtext', 'canvas height: ', this.value)">
-		  <div id="movSpdtext">translate speed: 0.02</div>
-		  <input type="range" min="1" max="50" value="2" class="slider" id="movSpd"
-		  oninput="showVal('movSpdtext', 'translate speed: ', this.value/100.0)">
-		  <div id="rotSpdtxt">rotate speed: 0.05</div>
-		  <input type="range" min="1" max="50" value="5" class="slider" id="rotSpd"
-		  oninput="showVal('rotSpdtxt', 'rotate speed: ', this.value/100.0)">
-		</div>
-		<button onclick="refresh()">Refresh</button>
-		Click refresh button after adjusting the sliders<br />
-		<br />
 		<div> 
-			Please use <b>caps lock</b> for uppercase key<br />
+			Your goal is to click screen to launch missiles and counter all red enemy missiles<br />
+			If all enemy missiles are gone then you win<br />
+			If all buildings are gone then it's game over<br />
+			<br />Please use <b>caps lock</b> for uppercase key<br />
 			<br />
+			t 		— start or pause the game<br />
 			a and d — translate view left and right along view X<br />
 			w and s — translate view forward and backward along view Z<br />
 			q and e — translate view up and down along view Y<br />
@@ -53,7 +39,6 @@
 			up and down — select and highlight the next/previous ellipsoid (previous off)<br />
 			space — deselect and turn off highlight<br />
 			<br />
-			b — toggle between Phong and Blinn-Phong lighting<br />
 			n — increment the specular integer exponent by 1 (wrap from 20 to 0)<br />
 			1 — increase the ambient weight by 0.1 (wrap from 1 to 0)<br />
 			2 — increase the diffuse weight by 0.1 (wrap from 1 to 0)<br />
